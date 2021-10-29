@@ -69,15 +69,7 @@ class ValueIterationAgent(ValueEstimationAgent):
                 values = []
 
                 for action in actions:
-                    transitions = self.mdp.getTransitionStatesAndProbs(state, action)
-                    current_action_sum = 0
-                    for transition in transitions:
-                        next_state, transition_prob = transition
-                        reward_transition = self.mdp.getReward(state, action, next_state)
-                        v_next_state = self.values[next_state]
-                        curr_v_term = transition_prob * (reward_transition + self.discount * v_next_state)
-                        current_action_sum += curr_v_term
-                    values.append(current_action_sum)
+                    values.append(self.computeQValueFromValues(state, action))
                 
                 current_iteration_values[state] = max(values, default=0)
             
@@ -110,6 +102,15 @@ class ValueIterationAgent(ValueEstimationAgent):
         
         return current_action_sum
 
+    def computeBellmanValueFromValues(self, state):
+        actions = self.mdp.getPossibleActions(state)
+        values = []
+
+        for action in actions:
+            values.append(self.computeQValueFromValues(state, action))
+        
+        return max(values, default=0)
+
     def computeActionFromValues(self, state):
         """
           The policy is the best action in the given state
@@ -126,15 +127,7 @@ class ValueIterationAgent(ValueEstimationAgent):
         values = []
 
         for action in actions:
-            transitions = self.mdp.getTransitionStatesAndProbs(state, action)
-            current_action_sum = 0
-            for transition in transitions:
-                next_state, transition_prob = transition
-                reward_transition = self.mdp.getReward(state, action, next_state)
-                v_next_state = self.values[next_state]
-                curr_v_term = transition_prob * (reward_transition + self.discount * v_next_state)
-                current_action_sum += curr_v_term
-            values.append(current_action_sum)
+            values.append(self.computeQValueFromValues(state, action))
         
         max_idx = max(range(len(values)), key=values.__getitem__)
         return actions[max_idx]
@@ -177,7 +170,14 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
         ValueIterationAgent.__init__(self, mdp, discount, iterations)
 
     def runValueIteration(self):
-        "*** YOUR CODE HERE ***"
+        states = self.mdp.getStates()
+        counter = 0
+
+        for iteration in range(self.iterations): 
+            state = states[counter]            
+            self.values[state] = self.computeBellmanValueFromValues(state)
+            counter = (counter + 1) % len(states)
+            
 
 class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
     """
@@ -197,5 +197,43 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
         ValueIterationAgent.__init__(self, mdp, discount, iterations)
 
     def runValueIteration(self):
-        "*** YOUR CODE HERE ***"
+        states = self.mdp.getStates()
+        predecessors = {}
+
+        for state in states:
+            predecessors[state] = set()
+
+        for state in states:
+            actions = self.mdp.getPossibleActions(state)
+            for action in actions:
+                transitions = self.mdp.getTransitionStatesAndProbs(state, action)
+                for next_state, transition_prob in transitions:
+                    if transition_prob > 0:
+                        predecessors[next_state].add(state)
+
+        priority_queue = util.PriorityQueue()
+
+        for state in states:
+            if self.mdp.isTerminal(state):
+                continue
+            
+            actions = self.mdp.getPossibleActions(state)
+            
+            diff = abs(self.values[state] - self.computeBellmanValueFromValues(state))
+            priority_queue.push(state, -diff)
+        
+        for iteration in range(self.iterations):
+            if priority_queue.isEmpty():
+                break
+            
+            state = priority_queue.pop()
+
+            if not self.mdp.isTerminal(state):
+                self.values[state] = self.computeBellmanValueFromValues(state)
+            
+            for predecessor in predecessors[state]:
+                diff = abs(self.values[predecessor] - self.computeBellmanValueFromValues(predecessor))
+                if diff > self.theta:
+                    priority_queue.update(predecessor, -diff)
+
 
