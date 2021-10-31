@@ -86,7 +86,7 @@ class ValueEstimationAgent(Agent):
 
 class ReinforcementAgent(ValueEstimationAgent):
     """
-      Abstract Reinforcemnt Agent: A ValueEstimationAgent
+      Abstract Reinforcement Agent: A ValueEstimationAgent
             which estimates Q-Values (as well as policies) from experience
             rather than a model
 
