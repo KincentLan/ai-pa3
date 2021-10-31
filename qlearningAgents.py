@@ -59,7 +59,7 @@ class QLearningAgent(ReinforcementAgent):
           terminal state, you should return a value of 0.0.
         """
         actions = self.getLegalActions(state)
-        values = [self.values[(state, action)] for action in actions]
+        values = [self.getQValue(state, action) for action in actions]
         return max(values, default=0)
           
 
@@ -74,7 +74,7 @@ class QLearningAgent(ReinforcementAgent):
         if len(actions) == 0:
           return None
 
-        values = [self.values[(state, action)] for action in actions]
+        values = [self.getQValue(state, action) for action in actions]
         max_value = max(values)
         choices = [actions[idx] for idx, value in enumerate(values) if value == max_value]
         return random.choice(choices)
@@ -171,15 +171,24 @@ class ApproximateQAgent(PacmanQAgent):
           Should return Q(state,action) = w * featureVector
           where * is the dotProduct operator
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        features = self.featExtractor.getFeatures(state, action)
+        sum = 0
+
+        for feature in features:
+          sum += features[feature] * self.weights[feature]
+        
+        return sum
 
     def update(self, state, action, nextState, reward):
         """
            Should update your weights based on transition
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        features = self.featExtractor.getFeatures(state, action)
+        difference = (reward + self.discount * self.computeValueFromQValues(nextState)) - self.getQValue(state, action)
+        for feature in features:
+          self.weights[feature] = self.weights[feature] + self.alpha * difference * features[feature]
+        
 
     def final(self, state):
         "Called at the end of each game."
@@ -189,5 +198,5 @@ class ApproximateQAgent(PacmanQAgent):
         # did we finish training?
         if self.episodesSoFar == self.numTraining:
             # you might want to print your weights here for debugging
-            "*** YOUR CODE HERE ***"
+            print(self.getWeights())
             pass
